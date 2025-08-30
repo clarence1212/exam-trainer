@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chat-Based Exam Trainer — EA & CPA Australia</title>
+<style>
+  :root{
+    --bg:#0f172a; /* slate-900 */
+    --panel:#111827; /* gray-900 */
+    --card:#1f2937; /* gray-800 */
+    --text:#e5e7eb; /* gray-200 */
+    --muted:#9ca3af; /* gray-400 */
+    --accent:#22c55e; /* green-500 */
+    --accent-2:#60a5fa; /* blue-400 */
+    --wrong:#ef4444;  /* red-500 */
+    --right:#10b981;  /* emerald-500 */
+    --chip:#374151;   /* gray-700 */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+  .app{display:grid;grid-template-columns:340px 1fr;min-height:100vh}
+  aside{background:var(--panel);border-right:1px solid #1f2937;padding:16px 14px;display:flex;flex-direction:column;gap:14px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  h1{font-size:16px;margin:0;color:#fff}
+  h2{font-size:14px;margin:0;color:#cbd5e1}
+  select,button,input[type="checkbox"],input,textarea{cursor:pointer}
+  .panel{background:var(--card);border:1px solid #2b3442;border-radius:12px;padding:12px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .select, .input, .textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#e5e7eb}
+  .topics{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .chip{background:var(--chip);border:1px solid #475569;border-radius:999px;padding:6px 10px;font-size:12px;display:flex;align-items:center;gap:6px}
+  .chip input{accent-color:var(--accent)}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .stat{background:#0b1220;border:1px solid #1f2937;border-radius:10px;padding:10px;text-align:center}
+  .muted{color:var(--muted);font-size:12px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:1px solid #334155;background:#0b1220;color:#e5e7eb;border-radius:10px;padding:8px 12px}
+  .btn.primary{background:linear-gradient(90deg,#2563eb,#22c55e);border:none}
+  .btn.warn{background:#361416;border:1px solid #7f1d1d}
+  .btn.ghost{background:transparent;border-color:#334155}
+
+  main{display:grid;grid-template-rows:auto 1fr auto;}
+  header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #1f2937;background:var(--panel)}
+  .pill{border:1px solid #374151;border-radius:999px;padding:6px 10px;font-size:12px}
+
+  .chat{padding:18px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+  .msg{max-width:980px}
+  .bubble{background:var(--card);border:1px solid #273244;border-radius:12px;padding:12px;line-height:1.4}
+  .bubble.me{background:#0b1220;border-color:#1f2533}
+  .qmeta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .tag{font-size:11px;color:#cbd5e1;background:#0b1220;border:1px solid #334155;border-radius:999px;padding:4px 8px}
+  .options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .opt{background:#0b1220;border:1px solid #334155;border-radius:10px;padding:10px;text-align:left}
+  .opt:hover{border-color:#4493f8}
+  .opt.correct{border-color:var(--right)}
+  .opt.wrong{border-color:var(--wrong)}
+  .explain{border-left:3px solid #3b82f6;padding-left:10px;margin-top:10px;color:#cbd5e1}
+
+  .composer{display:flex;gap:8px;padding:12px;border-top:1px solid #1f2937;background:var(--panel)}
+  .composer .btn{padding:10px 14px}
+  .grow{flex:1}
+
+  .grid-two{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;padding:14px}
+  .card{background:var(--card);border:1px solid #273244;border-radius:12px;padding:12px}
+
+  .hidden{display:none}
+  .small{font-size:12px}
+  .right{color:var(--right)}
+  .wrong{color:var(--wrong)}
+  .timer{font-weight:700}
+
+  .editor-grid{display:grid;grid-template-columns:1fr;gap:8px}
+  .opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+  @media (max-width: 1080px){
+    .app{grid-template-columns:1fr}
+    aside{order:2}
+    main{order:1}
+    .grid-two{grid-template-columns:1fr}
+    .options{grid-template-columns:1fr}
+  }
+.difficulty{font-size:11px;border:1px solid #334155;border-radius:6px;padding:2px 6px;margin-left:6px}
+  .row-split{display:flex;gap:8px}
+  .row-split>*{flex:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><span class="dot"></span><div>
+      <h1>Exam Trainer</h1>
+      <h2>EA + CPA Australia</h2>
+    </div></div>
+
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <strong>Exam / Part</strong>
+        <span class="muted small" id="sessionLabel">Session: —</span>
+      </div>
+      <select id="examSelect" class="select"></select>
+      <div class="topics" id="topics"></div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn primary" id="startBtn">Start / Next Question</button>
+        <button class="btn" id="reviewBtn">Review Mistakes</button>
+        <button class="btn warn" id="resetBtn" title="Clear progress for selected exam">Reset Progress</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <strong>Adaptive Practice</strong>
+      <div class="row" style="margin-top:8px">
+        <label class="chip"><input type="checkbox" id="adaptiveMode"/> Target weaknesses</label>
+        <label class="chip"><input type="checkbox" id="adaptiveDifficulty"/> Adjust difficulty</label>
+      </div>
+      <div class="muted small" id="adaptiveHint" style="margin-top:6px">When on, the next question is chosen to improve your weakest topics. Difficulty rises as you improve.</div>
+    </div>
+
+    <div class="panel">
+      <strong>Mock Exam</strong>
+      <div class="editor-grid" style="margin-top:8px">
+        <label>Number of Questions
+          <input id="mockCount" class="input" type="number" min="5" max="100" value="20" />
+        </label>
+        <label>Time Limit (minutes)
+          <input id="mockMinutes" class="input" type="number" min="5" max="240" value="60" />
+        </label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label class="chip"><input type="checkbox" id="mockHideExplain" checked/> Hide explanations until end</label>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn primary" id="startMockBtn">Start Mock</button>
+        <button class="btn ghost" id="endMockBtn">End Mock</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <strong>Performance</strong>
+      <div class="stats">
+        <div class="stat"><div id="statAcc">—%</div><div class="muted small">Accuracy</div></div>
+        <div class="stat"><div id="statCount">0</div><div class="muted small">Answered</div></div>
+      </div>
+      <div class="card" style="margin-top:10px">
+        <strong class="small">Strengths & Weaknesses</strong>
+        <div id="swList" class="small muted" style="margin-top:6px">Answer some questions to unlock insights…</div>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn" id="exportBtn">Export Progress</button>
+        <input type="file" id="importFile" class="hidden" accept="application/json" />
+        <button class="btn" id="importBtn">Import</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <strong>Question Editor</strong> &nbsp; <span class="muted small">(adds to your local bank)</span>
+      <div class="editor-grid" style="margin-top:8px">
+        <select id="edExam" class="select"></select>
+        <input id="edTopic" class="input" placeholder="Topic (new or existing)" />
+        <textarea id="edQ" class="textarea" rows="3" placeholder="Question text"></textarea>
+        <div class="opt-grid">
+          <input id="edA" class="input" placeholder="Option A" />
+          <input id="edB" class="input" placeholder="Option B" />
+          <input id="edC" class="input" placeholder="Option C" />
+          <input id="edD" class="input" placeholder="Option D" />
+        </div>
+        <select id="edAns" class="select">
+          <option value="0">Correct: A</option>
+          <option value="1">Correct: B</option>
+          <option value="2">Correct: C</option>
+          <option value="3">Correct: D</option>
+        </select>
+        <textarea id="edExplain" class="textarea" rows="3" placeholder="Explain the correct answer"></textarea>
+      </div>
+      <div class="row-split" style="margin-top:6px">
+        <select id="edDiff" class="select">
+          <option value="easy">Difficulty: Easy</option>
+          <option value="medium" selected>Difficulty: Medium</option>
+          <option value="hard">Difficulty: Hard</option>
+        </select>
+        <div></div>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn primary" id="addQBtn">Add Question</button>
+        <button class="btn" id="exportBankBtn">Export Question Bank</button>
+        <input type="file" id="importBankFile" class="hidden" accept="application/json" />
+        <button class="btn" id="importBankBtn">Import Bank</button>
+      </div>
+      <div class="muted small" id="edStatus" style="margin-top:6px"></div>
+    </div>
+
+    <div class="panel">
+      <strong>AI Question Generator</strong>
+      <div class="editor-grid" style="margin-top:8px">
+        <input id="genBase" class="input" placeholder="LLM Base URL (e.g., https://api.openai.com/v1)" value="https://api.openai.com/v1" />
+        <div class="row-split">
+          <input id="genModel" class="input" placeholder="Model name (e.g., gpt-4o-mini)" value="gpt-4o-mini" />
+          <input id="genKey" class="input" placeholder="API Key" />
+        </div>
+        <div class="row-split">
+          <select id="genExam" class="select"></select>
+          <input id="genTopic" class="input" placeholder="Topic (e.g., FEIE vs FTC)" />
+        </div>
+        <div class="row-split">
+          <select id="genDiff" class="select">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+          <input id="genCount" class="input" type="number" min="1" max="50" value="5" />
+        </div>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn primary" id="genBtn">Generate & Add</button>
+      </div>
+      <div class="muted small" id="genStatus" style="margin-top:6px">Provide API details to fetch dynamic questions. Your key is stored only in memory while page is open.</div>
+    </div>
+
+    <div class="panel">
+      <strong>Modes</strong>
+      <div class="row">
+        <label class="chip"><input type="checkbox" id="timedMode"/> Timed</label>
+        <label class="chip"><input type="checkbox" id="hideExplain"/> Hide Explanations (until answered)</label>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <div>
+        <div style="font-weight:700">Chat Session</div>
+        <div class="muted small">Guided Q&A with instant explanations</div>
+      </div>
+      <div class="pill" id="modePill">Practice Mode</div>
+    </header>
+
+    <div class="grid-two">
+      <section class="card" style="min-height:60vh">
+        <div id="chat" class="chat" aria-live="polite"></div>
+        <div class="composer">
+          <button class="btn" id="skipBtn">Skip</button>
+          <div class="grow"></div>
+          <button class="btn primary" id="nextBtn">Next</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <strong>Question Info</strong>
+        <div id="qInfo" class="small muted" style="margin-top:6px">No question loaded.</div>
+        <hr style="border-color:#273244;margin:10px 0"/>
+        <strong>Session Notes</strong>
+        <div id="notes" class="small muted" style="margin-top:6px">Use the left panel to pick exam/part and topics. Start a Practice or a Mock Exam.</div>
+        <hr style="border-color:#273244;margin:10px 0"/>
+        <strong>Mock Exam Status</strong>
+        <div id="mockStatus" class="small muted" style="margin-top:6px">—</div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+// -------------------- Default Question Bank --------------------
+const DEFAULT_BANK = {
+  "EA-P1":{
+    name:"EA Part 1 — Individuals",
+    topics:["Filing Status","Income & Assets","Deductions & Credits","FEIE vs FTC","Social Security Taxation"],
+    questions:[
+      {id:"P1-1", topic:"Filing Status", q:"A taxpayer is unmarried on 12/31 and supports a qualifying child living with them all year. Which filing status maximizes standard deduction?", options:["Single","Married filing separately","Head of Household","Qualifying surviving spouse"], answer:2, explain:"Head of Household (HoH) applies when the taxpayer is unmarried, paid >50% of household costs, and has a qualifying person living with them >6 months. HoH has a larger standard deduction and better brackets than Single."},
+      {id:"P1-2", topic:"Income & Assets", q:"Which portion of long-term capital gains is generally taxed at preferential rates for individuals?", options:["All ordinary income","Short-term gains only","Long-term gains","Interest and wages"], answer:2, explain:"Long-term capital gains (assets held >1 year) are taxed at 0/15/20% brackets, unlike short-term gains which are ordinary income."},
+      {id:"P1-3", topic:"Deductions & Credits", q:"A taxpayer claims the Child Tax Credit (CTC). Which is true?", options:["CTC is an adjustment to income","CTC is nonrefundable only","Additional CTC may be refundable","CTC phases in at higher AGI for Single than HoH"], answer:2, explain:"Part of the Child Tax Credit is refundable (Additional CTC) subject to earned income thresholds; the main CTC is nonrefundable."},
+      {id:"P1-4", topic:"FEIE vs FTC", q:"A U.S. citizen in Singapore with S$ salary asks whether to use Form 2555 (FEIE) or Form 1116 (FTC). Which statement is most accurate?", options:["Always take FEIE; it's better","Always take FTC; it's better","Run both scenarios; FEIE may block some credits/deductions while FTC preserves them","Neither is allowed for foreign salary"], answer:2, explain:"Choice depends on amounts and other credits. FEIE can reduce AGI but may limit other credits; FTC often better for high-tax countries. Software should model both and pick the lower tax liability."},
+      {id:"P1-5", topic:"Social Security Taxation", q:"Up to what portion of Social Security benefits may be taxable based on provisional income thresholds?", options:["0% only","Up to 50%","Up to 85%","100%"], answer:2, explain:"Depending on provisional income, up to 85% of SS benefits may be included in taxable income."}
+    ]
+  },
+  "EA-P2":{
+    name:"EA Part 2 — Businesses",
+    topics:["Entity Types","Depreciation & §179","Employment Taxes","Partnership Basis","QBI §199A"],
+    questions:[
+      {id:"P2-1", topic:"Entity Types", q:"An S corporation's income generally flows to shareholders and is taxed where?", options:["At the corporate level only","At shareholder level only","Both corporate and shareholder levels","It is tax-exempt"], answer:1, explain:"S corps are pass-through entities; income/loss flows to shareholders' returns (Schedule K-1)."},
+      {id:"P2-2", topic:"Depreciation & §179", q:"Which is true about §179 expensing vs bonus depreciation?", options:["§179 applies to real property only","Both can create or increase a loss, but §179 has taxable income limits","Bonus depreciation cannot be used for new assets","§179 has no dollar limit"], answer:1, explain:"§179 has dollar and taxable-income limits; bonus depreciation typically is not limited by taxable income and can create losses."},
+      {id:"P2-3", topic:"Employment Taxes", q:"Which taxes are employers responsible to withhold/deposit for employees?", options:["FICA (SS/Medicare) and income tax withholding","Only FUTA","Only state unemployment","None; employees handle all"], answer:0, explain:"Employers must withhold federal income tax and FICA and deposit them; they also pay employer portions and FUTA where applicable."},
+      {id:"P2-4", topic:"Partnership Basis", q:"A partner's outside basis increases by which item?", options:["Cash distributions","Share of partnership liabilities","Partner's personal loan to someone else","Unrelated capital losses"], answer:1, explain:"A partner's share of partnership liabilities increases outside basis; distributions generally reduce basis."},
+      {id:"P2-5", topic:"QBI §199A", q:"Which statement about the QBI deduction is most accurate?", options:["It is a credit equal to 20% of QBI","It is a deduction up to 20% of qualified business income with wage/property limits at higher incomes","It applies to C corporations","It replaces itemized deductions"], answer:1, explain:"§199A provides a deduction up to 20% of QBI for pass-through income, subject to W-2 wage and UBIA property limits above thresholds."}
+    ]
+  },
+  "EA-P3":{
+    name:"EA Part 3 — Representation & Procedures",
+    topics:["Circular 230","POA & Disclosure","Audits & Appeals","Collections","Preparer Penalties"],
+    questions:[
+      {id:"P3-1", topic:"Circular 230", q:"Under Circular 230, which best describes a practitioner's due diligence duty?", options:["Rely blindly on client information","Make reasonable inquiries where information appears incorrect or incomplete","Audit the client","Ignore prior-year positions"], answer:1, explain:"Practitioners must exercise due diligence and make reasonable inquiries if information seems incorrect or incomplete."},
+      {id:"P3-2", topic:"POA & Disclosure", q:"Which form authorizes representation before the IRS?", options:["Form 8821","Form 2848","Form 4506","Form 4868"], answer:1, explain:"Form 2848 grants Power of Attorney to represent a taxpayer before the IRS; Form 8821 authorizes information disclosure only."},
+      {id:"P3-3", topic:"Audits & Appeals", q:"Within IRS, which office handles independent review of examination findings?", options:["Collections","Chief Counsel","Appeals Office","Taxpayer Advocate"], answer:2, explain:"The IRS Independent Office of Appeals resolves disputes impartially, separate from Examination and Collections."},
+      {id:"P3-4", topic:"Collections", q:"A taxpayer cannot fully pay at once. Which option might settle for less than the full amount?", options:["Installment Agreement","Currently Not Collectible","Offer in Compromise","Penalty Abatement only"], answer:2, explain:"Offer in Compromise may settle tax for less than full amount if the offer reflects the taxpayer's reasonable collection potential."},
+      {id:"P3-5", topic:"Preparer Penalties", q:"A preparer takes an unreasonable position without substantial authority. Which penalty may apply?", options:["Accuracy-related penalty on taxpayer only","Preparer penalty under IRC §6694","Criminal fraud automatically","No penalty if client signs"], answer:1, explain:"IRC §6694 imposes penalties on preparers for unreasonable positions lacking substantial authority or for willful/reckless conduct."}
+    ]
+  },
+  "CPA-EG":{
+    name:"CPA Australia — Ethics & Governance",
+    topics:["APES 110 Code","Independence","Corporate Governance","Conflicts & Whistleblowing","Public Interest"],
+    questions:[
+      {id:"EG-1", topic:"APES 110 Code", q:"Which is NOT one of the five fundamental principles in APES 110?", options:["Integrity","Objectivity","Confidentiality","Professional Advertising"], answer:3, explain:"The five principles are Integrity, Objectivity, Professional Competence & Due Care, Confidentiality, and Professional Behavior. 'Professional Advertising' is not one of them."},
+      {id:"EG-2", topic:"Independence", q:"An audit partner holds a small portfolio of shares in the audit client via a family trust. Which threat arises?", options:["Self-interest threat","Advocacy threat","Familiarity threat","Intimidation threat"], answer:0, explain:"A financial interest in a client creates a self-interest threat to independence; safeguards usually require disposing of the interest or removing the individual from the engagement."},
+      {id:"EG-3", topic:"Corporate Governance", q:"Which board committee is primarily responsible for oversight of financial reporting and external audit?", options:["Nomination Committee","Audit Committee","Remuneration Committee","Risk Committee"], answer:1, explain:"The Audit Committee oversees financial reporting, internal control and external audit independence and performance."},
+      {id:"EG-4", topic:"Conflicts & Whistleblowing", q:"Under NOCLAR concepts, a member who discovers suspected non-compliance should first do what?", options:["Immediately report to the media","Resign without action","Discuss with appropriate level of management or those charged with governance","Ignore it if immaterial"], answer:2, explain:"NOCLAR requires raising the matter internally at an appropriate level and assessing response before further action; escalate to TCWG and consider legal obligations."},
+      {id:"EG-5", topic:"Public Interest", q:"Which best reflects acting in the public interest?", options:["Maximising firm revenue","Protecting confidentiality while ensuring truthful reporting and compliance with laws","Prioritising client demands over laws","Avoiding professional skepticism"], answer:1, explain:"Professional accountants serve the public interest by complying with laws, upholding ethics, and providing truthful, transparent reporting while respecting confidentiality."}
+    ]
+  }
+};
+
+// ensure each question has a difficulty label
+function normalizeBank(bank){
+  for(const [exam,data] of Object.entries(bank)){
+    (data.questions||[]).forEach(q=>{ if(!q.difficulty) q.difficulty='medium'; });
+  }
+  return bank;
+}
+
+// -------------------- Merge with User Bank --------------------
+const BANK_STORAGE_KEY = 'examTrainerBank_v1';
+function loadUserBank(){
+  try{ return JSON.parse(localStorage.getItem(BANK_STORAGE_KEY)||'{}'); }catch(e){ return {} }
+}
+function saveUserBank(userBank){
+  localStorage.setItem(BANK_STORAGE_KEY, JSON.stringify(userBank));
+}
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+let USER_BANK = loadUserBank();
+
+function mergeBanks(){
+  const merged = deepClone(DEFAULT_BANK);
+  for(const [exam, data] of Object.entries(USER_BANK)){
+    if(!merged[exam]) merged[exam] = {name: exam, topics:[], questions:[]};
+    const tgt = merged[exam];
+    // merge topics
+    const topicSet = new Set(tgt.topics);
+    (data.topics||[]).forEach(t=>topicSet.add(t));
+    tgt.topics = Array.from(topicSet);
+    // merge questions (append user questions; assume unique ids)
+    (data.questions||[]).forEach(q=>tgt.questions.push(q));
+  }
+  return merged;
+}
+
+let BANK = normalizeBank(mergeBanks());
+
+// -------------------- State & Storage --------------------
+const STORAGE_KEY = 'examTrainerProgress_v1';
+let STATE = {
+  exam:"EA-P1",
+  topicFilters:new Set(),
+  reviewMode:false,
+  lastQuestion:null,
+  hideExplain:false,
+  timed:false,
+  history:[],
+  adaptive:{ on:false, diff:false, seen:{} },
+  mock:{ active:false, queue:[], index:0, remainingMs:0, timer:null, settings:{count:20, minutes:60, hideExplain:true}, results:[] }
+};
+
+function loadProgress(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw) return {};
+  try{ return JSON.parse(raw);}catch(e){ return {} }
+}
+function saveProgress(progress){ localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); }
+
+// structure: progress[exam] = {answered,correct,byTopic:{topic:{a,c}}, mistakes:[]}
+let PROG = loadProgress();
+for(const k of Object.keys(BANK)) if(!PROG[k]) PROG[k] = {answered:0,correct:0,byTopic:{},mistakes:[]};
+
+// -------------------- UI Helpers --------------------
+const $ = s=>document.querySelector(s);
+const chatEl = $('#chat');
+const examSelectEl = $('#examSelect');
+const topicsEl = $('#topics');
+const qInfoEl = $('#qInfo');
+const notesEl = $('#notes');
+const mockStatusEl = $('#mockStatus');
+
+function fmtPct(n){return (Math.round(n*1000)/10).toFixed(1)+"%"}
+function fmtTime(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60); const r=s%60; return `${m}:${String(r).padStart(2,'0')}` }
+
+function renderStats(){
+  const p = PROG[STATE.exam];
+  const acc = p.answered? p.correct/p.answered : 0;
+  $('#statAcc').textContent = fmtPct(acc);
+  $('#statCount').textContent = p.answered;
+  // strengths/weaknesses
+  const arr = Object.entries(p.byTopic).map(([t,v])=>({t,acc:v.a? v.c/v.a:0,a:v.a})).sort((a,b)=>a.acc-b.acc);
+  if(!arr.length){ $('#swList').textContent = 'Answer some questions to unlock insights…'; return; }
+  const top = arr.slice(0,2); const best = arr.slice(-2).reverse();
+  $('#swList').innerHTML = `<div><b>Weakest</b>: ${top.map(x=>`${x.t} (${fmtPct(x.acc)})`).join(', ')}</div>
+  <div style="margin-top:4px"><b>Strongest</b>: ${best.map(x=>`${x.t} (${fmtPct(x.acc)})`).join(', ')}</div>`;
+}
+
+function renderExamSelect(){
+  examSelectEl.innerHTML = Object.entries(BANK).map(([id,v])=>`<option value="${id}">${v.name}</option>`).join('');
+  examSelectEl.value = STATE.exam;
+  // editor exam list
+  const edExam = $('#edExam');
+  edExam.innerHTML = Object.entries(BANK).map(([id,v])=>`<option value="${id}">${v.name}</option>`).join('');
+  edExam.value = STATE.exam;
+}
+
+function renderTopics(){
+  const exam = BANK[STATE.exam];
+  topicsEl.innerHTML = exam.topics.map(t=>{
+    const checked = STATE.topicFilters.size? STATE.topicFilters.has(t): false;
+    return `<label class="chip"><input type="checkbox" data-topic="${t}" ${checked? 'checked':''}/> ${t}</label>`
+  }).join('');
+}
+
+function setNote(msg){ notesEl.textContent = msg }
+
+function systemBubble(html){
+  const wrap = document.createElement('div'); wrap.className='msg';
+  wrap.innerHTML = `<div class="bubble">${html}</div>`; chatEl.appendChild(wrap); chatEl.scrollTop = chatEl.scrollHeight;
+}
+function tutorBubble(html){
+  const wrap = document.createElement('div'); wrap.className='msg';
+  wrap.innerHTML = `<div class="bubble">${html}</div>`; chatEl.appendChild(wrap); chatEl.scrollTop = chatEl.scrollHeight;
+}
+function meBubble(html){
+  const wrap = document.createElement('div'); wrap.className='msg';
+  wrap.innerHTML = `<div class="bubble me">${html}</div>`; chatEl.appendChild(wrap); chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+// -------------------- Question Flow --------------------
+function currentPool(){
+  const exam = BANK[STATE.exam];
+  let pool = exam.questions.slice();
+  if(STATE.topicFilters.size){ pool = pool.filter(q=>STATE.topicFilters.has(q.topic)); }
+  if(STATE.reviewMode){ const ids = new Set(PROG[STATE.exam].mistakes); pool = pool.filter(q=>ids.has(q.id)); }
+  return pool;
+}
+
+function pickQuestion(){
+  let pool = currentPool();
+  if(!pool.length) return null;
+
+  if(STATE.adaptive.on){
+    const perf = PROG[STATE.exam].byTopic;
+    const weights = pool.map(q=>{
+      const t = perf[q.topic]||{a:0,c:0};
+      const acc = t.a? t.c/t.a : 0; // lower accuracy => higher weight
+      let w = 1 - acc + 0.2; // base boost
+      if(STATE.adaptive.diff){
+        const diffMul = q.difficulty==='easy'? .9 : q.difficulty==='medium'? 1.0 : 1.1;
+        w *= diffMul;
+      }
+      // slight penalty for very recent repeats
+      const seen = STATE.adaptive.seen[q.id]||0; w /= (1 + 0.15*seen);
+      return {q,w};
+    });
+    const sum = weights.reduce((s,x)=>s+x.w,0);
+    let r = Math.random()*sum;
+    for(const x of weights){ if((r-=x.w)<=0){ return x.q; } }
+  }
+
+  // Non-adaptive: avoid immediate repeat
+  const lastId = STATE.lastQuestion?.id;
+  let q = null; let attempts = 0;
+  do { q = pool[Math.floor(Math.random()*pool.length)]; attempts++; } while(q && q.id===lastId && attempts<5);
+  return q;
+}
+
+function renderQuestion(q){
+  STATE.lastQuestion = q;
+  qInfoEl.innerHTML = `<div><b>ID:</b> ${q.id}</div><div><b>Topic:</b> ${q.topic}</div>`;
+  const meta = `<div class="qmeta"><span class="tag">${BANK[STATE.exam].name}</span><span class="tag">${q.topic}</span>${STATE.mock.active? '<span class="tag">Mock</span>':''}</div>`;
+  let html = `${meta}<div style="font-weight:700;margin-bottom:6px">${q.q}</div>`;
+  html += `<div class="options">` + q.options.map((opt,i)=>
+      `<button class="opt" data-idx="${i}"><b>${String.fromCharCode(65+i)}.</b> ${opt}</button>`
+    ).join('') + `</div>`;
+  if(!STATE.hideExplain && !STATE.mock.active){ html += `<div class="explain muted small">Answer to see explanation…</div>` }
+  systemBubble(html);
+}
+
+function gradeAnswer(q, choice){
+  const correct = (choice===q.answer);
+  // practice tracking
+  const p = PROG[STATE.exam];
+  p.answered += 1; if(!p.byTopic[q.topic]) p.byTopic[q.topic]={a:0,c:0}; p.byTopic[q.topic].a += 1; if(correct) { p.correct +=1; p.byTopic[q.topic].c +=1; } else { if(!p.mistakes.includes(q.id)) p.mistakes.push(q.id); }
+  saveProgress(PROG); renderStats();
+
+  // annotate last options block
+  const last = chatEl.querySelectorAll('.options');
+  const opts = last[last.length-1]?.querySelectorAll('.opt')||[];
+  opts.forEach((btn,i)=>{
+    if(i===q.answer) btn.classList.add('correct');
+    if(i===choice && i!==q.answer) btn.classList.add('wrong');
+    btn.disabled = true;
+  });
+
+  // record mock result
+  if(STATE.mock.active){
+    STATE.mock.results.push({id:q.id,topic:q.topic,correct,choice,answer:q.answer});
+    updateMockStatus();
+    if(STATE.mock.index >= STATE.mock.queue.length){ endMockExam(); return; }
+  }
+
+  const verdict = correct? `<span class="right"><b>Correct.</b></span>` : `<span class="wrong"><b>Incorrect.</b></span>`;
+  if(!STATE.mock.active){ tutorBubble(`${verdict} <div class="explain">${q.explain}</div>`); }
+}
+
+// -------------------- Mock Exam --------------------
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]] } return arr }
+function sample(arr,n){ return shuffle(arr.slice()).slice(0,Math.min(n,arr.length)); }
+
+function startMock(){
+  const count = Number($('#mockCount').value)||20;
+  const minutes = Number($('#mockMinutes').value)||60;
+  const pool = currentPool();
+  if(pool.length===0){ systemBubble('<i>No questions available for selected filters.</i>'); return; }
+  const queue = sample(pool, count);
+  STATE.mock = { active:true, queue, index:0, remainingMs: minutes*60*1000, timer:null, settings:{count, minutes, hideExplain: $('#mockHideExplain').checked}, results:[] };
+  STATE.reviewMode=false; $('#modePill').textContent = 'Mock Exam';
+  STATE.hideExplain = $('#mockHideExplain').checked; // force hide
+  // timer
+  STATE.mock.timer = setInterval(()=>{ STATE.mock.remainingMs -= 1000; updateMockStatus(); if(STATE.mock.remainingMs<=0){ endMockExam(); } },1000);
+  updateMockStatus();
+  chatEl.innerHTML='';
+  setNote('Mock Exam started. Explanations are hidden until the end.');
+  renderQuestion(STATE.mock.queue[STATE.mock.index++]);
+}
+
+function updateMockStatus(){
+  const done = STATE.mock.results.length;
+  const total = STATE.mock.queue.length;
+  mockStatusEl.textContent = `Progress: ${done}/${total} • Time Left: ${fmtTime(STATE.mock.remainingMs)}`;
+}
+
+function endMockExam(){
+  if(!STATE.mock.active) return;
+  clearInterval(STATE.mock.timer); STATE.mock.timer=null;
+  const total = STATE.mock.queue.length;
+  const correct = STATE.mock.results.filter(r=>r.correct).length;
+  const score = total? Math.round(correct/total*100):0;
+  // topic breakdown
+  const byTopic={};
+  STATE.mock.results.forEach(r=>{ if(!byTopic[r.topic]) byTopic[r.topic]={a:0,c:0}; byTopic[r.topic].a++; if(r.correct) byTopic[r.topic].c++; });
+  const topicHtml = Object.entries(byTopic).map(([t,v])=>`<li>${t}: ${v.c}/${v.a} (${fmtPct(v.c/v.a)})`).join('');
+  // incorrect list with explanations
+  const wrong = STATE.mock.results.filter(r=>!r.correct).map(r=>{
+    const q = BANK[STATE.exam].questions.find(x=>x.id===r.id);
+    return `<li><b>${q.id}</b> (${q.topic}) — Your answer: ${String.fromCharCode(65+r.choice)}; Correct: ${String.fromCharCode(65+q.answer)}<br/><div class="small muted">${q.q}</div><div class="explain">${q.explain}</div></li>`;
+  }).join('');
+
+  const report = {
+    exam: STATE.exam,
+    examName: BANK[STATE.exam].name,
+    score,
+    total,
+    correct,
+    results: STATE.mock.results,
+    byTopic
+  };
+  const blob = new Blob([JSON.stringify(report,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+
+  tutorBubble(`<div><b>Mock Exam finished.</b> Score: <b>${score}%</b> (${correct}/${total})</div>
+  <div style="margin-top:8px"><b>By Topic</b><ul>${topicHtml||'<li>No items</li>'}</ul></div>
+  <div style="margin-top:8px"><b>Incorrect Answers</b><ol>${wrong||'<li>None — great job!</li>'}</ol></div>
+  <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+    <a class="btn" href="${url}" download="mock_report.json">Download Report (JSON)</a>
+    <button class
+
